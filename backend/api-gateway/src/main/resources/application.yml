@@ -5,6 +5,11 @@ spring:
   application:
     name: api-gateway
   cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
     gateway:
       routes:
         - id: user-service
@@ -66,16 +71,6 @@ spring:
               - DELETE
               - OPTIONS
             allowedHeaders: "*"
-
-eureka:
-  client:
-    service-url:
-      defaultZone: http://localhost:8761/eureka/
-    register-with-eureka: true
-    fetch-registry: true
-  instance:
-    prefer-ip-address: true
-    instance-id: ${spring.application.name}:${server.port}
 
 management:
   endpoints:

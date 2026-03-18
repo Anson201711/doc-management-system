@@ -70,30 +70,6 @@ services:
     networks:
       - docman-network
 
-  # Nacos 服务注册/配置中心
-  nacos:
-    image: nacos/nacos-server:v2.2.3
-    container_name: docman-nacos
-    restart: always
-    environment:
-      MODE: standalone
-      SPRING_DATASOURCE_PLATFORM: mysql
-      MYSQL_SERVICE_HOST: mysql
-      MYSQL_SERVICE_DB_NAME: nacos_config
-      MYSQL_SERVICE_PORT: 3306
-      MYSQL_SERVICE_USER: docman
-      MYSQL_SERVICE_PASSWORD: docman123
-    ports:
-      - "8848:8848"
-      - "9848:9848"
-    volumes:
-      - nacos_data:/home/nacos/data
-    networks:
-      - docman-network
-    depends_on:
-      mysql:
-        condition: service_healthy
-
   # API Gateway
   api-gateway:
     build:
