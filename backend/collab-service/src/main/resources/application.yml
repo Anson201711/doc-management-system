@@ -19,6 +19,14 @@ spring:
         namespace: public
         file-extension: yaml
 
+# Enable Feign client
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 5000
+
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true

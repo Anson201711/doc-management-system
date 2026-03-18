@@ -1,35 +1,64 @@
 package com.example.collab.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.example.collab.client.DocumentClient;
 import com.example.collab.dto.AnnotationCreateDTO;
 import com.example.collab.dto.AnnotationResponseDTO;
 import com.example.collab.entity.Annotation;
 import com.example.collab.mapper.AnnotationMapper;
+import com.example.collab.websocket.CollabWebSocketHandler;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Annotation Service
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AnnotationService {
 
     private final AnnotationMapper annotationMapper;
+    private final DocumentClient documentClient;
 
     /**
      * Create annotation
      */
     @Transactional(rollbackFor = Exception.class)
     public AnnotationResponseDTO create(AnnotationCreateDTO dto) {
+        // Validate document exists
+        if (dto.getDocumentId() != null) {
+            try {
+                documentClient.checkDocumentExists(dto.getDocumentId());
+            } catch (Exception e) {
+                log.warn("Document validation failed: {}", e.getMessage());
+            }
+        }
+        
         Annotation annotation = new Annotation();
         BeanUtils.copyProperties(dto, annotation);
+        annotation.setStatus("active");
         annotationMapper.insert(annotation);
-        return toResponseDTO(annotation);
+        
+        // Broadcast to WebSocket
+        AnnotationResponseDTO result = toResponseDTO(annotation);
+        try {
+            CollabWebSocketHandler.broadcastToDocument(
+                dto.getDocumentId(), 
+                "ANNOTATION_ADDED", 
+                Map.of("annotation", result)
+            );
+        } catch (Exception e) {
+            log.warn("WebSocket broadcast failed: {}", e.getMessage());
+        }
+        
+        return result;
     }
 
     /**
@@ -76,6 +105,17 @@ public class AnnotationService {
         if (annotation != null) {
             annotation.setStatus("deleted");
             annotationMapper.updateById(annotation);
+            
+            // Broadcast to WebSocket
+            try {
+                CollabWebSocketHandler.broadcastToDocument(
+                    annotation.getDocumentId(), 
+                    "ANNOTATION_DELETED", 
+                    Map.of("annotationId", id)
+                );
+            } catch (Exception e) {
+                log.warn("WebSocket broadcast failed: {}", e.getMessage());
+            }
         }
     }
 
