@@ -17,6 +17,8 @@
         <module>permission-service</module>
         <module>workflow-service</module>
         <module>notification-service</module>
+        <module>collab-service</module>
+        <module>search-service</module>
     </modules>
 
     <properties>

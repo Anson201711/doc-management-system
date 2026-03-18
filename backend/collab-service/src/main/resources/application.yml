@@ -39,6 +39,12 @@ mybatis-plus:
       logic-not-delete-value: 0
   mapper-locations: classpath*:/mapper/**/*.xml
 
+# WebSocket Configuration
+  websocket:
+    message:
+      size-limit: 524288  # 512KB
+
 logging:
   level:
     com.example.collab: debug
+    org.springframework.web.socket: debug

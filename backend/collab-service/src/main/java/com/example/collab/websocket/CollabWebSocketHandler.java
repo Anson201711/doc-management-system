@@ -14,11 +14,12 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 
 /**
- * Collaboration WebSocket Handler
+ * Collaboration WebSocket Handler (Native WebSocket)
+ * Note: Use CollabStompController for STOMP protocol support
  */
 @Slf4j
 @Component
-@ServerEndpoint("/ws/collab/{documentId}")
+@ServerEndpoint("/ws/collab-native/{documentId}")
 public class CollabWebSocketHandler {
 
     private static final Map<Long, Set<Session>> documentSessions = new ConcurrentHashMap<>();
