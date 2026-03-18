@@ -1,3 +1,8 @@
+# 文档管理系统 - 中间件 docker-compose
+# 使用方法: docker-compose -f docker-compose.infra.yml up -d
+
+version: '3.8'
+
 services:
   # MySQL 数据库
   mysql:
@@ -13,7 +18,6 @@ services:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./mysql/init:/docker-entrypoint-initdb.d
     networks:
       - docman-network
     healthcheck:
@@ -33,9 +37,8 @@ services:
       - redis_data:/data
     networks:
       - docman-network
-    command: redis-server --appendonly yes
 
-  # Elasticsearch 搜索
+  # Elasticsearch 搜索引擎
   elasticsearch:
     image: elasticsearch:8.11.0
     container_name: docman-elasticsearch
@@ -48,30 +51,7 @@ services:
       - "9200:9200"
       - "9300:9300"
     volumes:
-      - elasticsearch_data:/usr/share/elasticsearch/data
-    networks:
-      - docman-network
-
-  # Nacos 服务注册/配置中心
-  nacos:
-    image: nacos/nacos-server:v2.2.3
-    # 如拉取失败，可使用国内镜像: dockerpull.com/nacos/nacos-server:v2.2.3
-    container_name: docman-nacos
-    restart: always
-    environment:
-      - MODE=standalone
-      - SPRING_DATASOURCE_PLATFORM=mysql
-      - MYSQL_SERVICE_HOST=mysql
-      - MYSQL_SERVICE_PORT=3306
-      - MYSQL_SERVICE_DB_NAME=nacos_config
-      - MYSQL_SERVICE_USER=docman
-      - MYSQL_SERVICE_PASSWORD=docman123
-    ports:
-      - "8848:8848"
-      - "9848:9848"
-    depends_on:
-      mysql:
-        condition: service_healthy
+      - es_data:/usr/share/elasticsearch/data
     networks:
       - docman-network
 
@@ -80,9 +60,10 @@ services:
     image: minio/minio:latest
     container_name: docman-minio
     restart: always
+    command: server /data --console-address ":9001"
     environment:
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -90,27 +71,37 @@ services:
       - minio_data:/data
     networks:
       - docman-network
-    command: server /data --console-address ":9001"
 
-  # Nginx 网关/前端
-  nginx:
-    image: nginx:alpine
-    container_name: docman-nginx
+  # Nacos 服务注册/配置中心
+  nacos:
+    image: nacos/nacos-server:v2.2.3
+    container_name: docman-nacos
     restart: always
+    environment:
+      MODE: standalone
+      SPRING_DATASOURCE_PLATFORM: mysql
+      MYSQL_SERVICE_HOST: mysql
+      MYSQL_SERVICE_DB_NAME: nacos_config
+      MYSQL_SERVICE_PORT: 3306
+      MYSQL_SERVICE_USER: docman
+      MYSQL_SERVICE_PASSWORD: docman123
     ports:
-      - "8080:80"
-      - "8443:443"
+      - "8848:8848"
+      - "9848:9848"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ../frontend/dist:/usr/share/nginx/html:ro
+      - nacos_data:/home/nacos/data
     networks:
       - docman-network
+    depends_on:
+      mysql:
+        condition: service_healthy
 
 volumes:
   mysql_data:
   redis_data:
-  elasticsearch_data:
+  es_data:
   minio_data:
+  nacos_data:
 
 networks:
   docman-network:
