@@ -9,33 +9,28 @@ import org.elasticsearch.client.RestClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.elasticsearch.client.elc.ElasticsearchConfiguration;
+import org.springframework.data.elasticsearch.repository.config.EnableElasticsearchRepositories;
 
-/**
- * Elasticsearch Configuration
- */
 @Configuration
-public class ElasticsearchConfig {
+@EnableElasticsearchRepositories(basePackages = "com.example.search.repository")
+public class ElasticsearchConfig extends ElasticsearchConfiguration {
     
     @Value("${spring.elasticsearch.uris}")
     private String elasticsearchUris;
     
-    @Bean
-    public RestClient restClient() {
+    @Override
+    public ElasticsearchClient elasticsearchClient() {
         String host = elasticsearchUris.replace("http://", "").replace("https://", "");
-        String[] parts = host.split(":");
-        String hostname = parts[0];
-        int port = parts.length > 1 ? Integer.parseInt(parts[1]) : 9200;
+        String[] hostPort = host.split(":");
         
-        return RestClient.builder(new HttpHost(hostname, port, "http")).build();
-    }
-    
-    @Bean
-    public ElasticsearchTransport elasticsearchTransport(RestClient restClient) {
-        return new RestClientTransport(restClient, new JacksonJsonpMapper());
-    }
-    
-    @Bean
-    public ElasticsearchClient elasticsearchClient(ElasticsearchTransport transport) {
+        RestClient restClient = RestClient.builder(
+                new HttpHost(hostPort[0], Integer.parseInt(hostPort[1]), "http")
+        ).build();
+        
+        ElasticsearchTransport transport = new RestClientTransport(
+                restClient, new JacksonJsonpMapper());
+        
         return new ElasticsearchClient(transport);
     }
 }
