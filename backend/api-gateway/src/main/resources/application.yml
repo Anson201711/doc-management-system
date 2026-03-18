@@ -10,31 +10,49 @@ spring:
         - id: user-service
           uri: lb://user-service
           predicates:
-            - Path=/users/**
+            - Path=/api/v1/users/**,/api/v1/auth/**
           filters:
             - StripPrefix=1
         - id: document-service
           uri: lb://document-service
           predicates:
-            - Path=/documents/**
+            - Path=/api/v1/documents/**
           filters:
             - StripPrefix=1
         - id: permission-service
           uri: lb://permission-service
           predicates:
-            - Path=/permissions/**
+            - Path=/api/v1/permissions/**
           filters:
             - StripPrefix=1
         - id: workflow-service
           uri: lb://workflow-service
           predicates:
-            - Path=/workflows/**
+            - Path=/api/v1/workflows/**
           filters:
             - StripPrefix=1
         - id: notification-service
           uri: lb://notification-service
           predicates:
-            - Path=/notifications/**
+            - Path=/api/v1/notifications/**
+          filters:
+            - StripPrefix=1
+        - id: collab-service
+          uri: lb://collab-service
+          predicates:
+            - Path=/api/v1/comments/**,/api/v1/annotations/**
+          filters:
+            - StripPrefix=1
+        - id: storage-service
+          uri: lb://storage-service
+          predicates:
+            - Path=/api/v1/storage/**
+          filters:
+            - StripPrefix=1
+        - id: search-service
+          uri: lb://search-service
+          predicates:
+            - Path=/api/v1/search/**
           filters:
             - StripPrefix=1
       globalcors:

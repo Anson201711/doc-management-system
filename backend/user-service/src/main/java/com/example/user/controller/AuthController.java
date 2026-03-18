@@ -1,9 +1,12 @@
 package com.example.user.controller;
 
 import com.example.user.config.JwtUtil;
+import com.example.user.dto.UserCreateDTO;
 import com.example.user.dto.UserResponseDTO;
 import com.example.user.entity.User;
 import com.example.user.repository.UserRepository;
+import com.example.user.service.UserService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +24,7 @@ public class AuthController {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final UserService userService;
 
     @PostMapping("/login")
     public ResponseEntity<Map<String, Object>> login(@RequestBody Map<String, String> loginRequest) {
@@ -87,6 +91,40 @@ public class AuthController {
         response.put("code", 200);
         response.put("message", "登出成功");
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/register")
+    public ResponseEntity<Map<String, Object>> register(@Valid @RequestBody UserCreateDTO dto) {
+        // Check if username exists
+        if (userService.existsByUsername(dto.getUsername())) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "code", 400,
+                "message", "用户名已存在"
+            ));
+        }
+
+        // Check if email already registered (if needed)
+        // Add email check logic here if required
+
+        UserResponseDTO user = userService.createUser(dto);
+
+        // Auto login after registration
+        String token = jwtUtil.generateToken(user.getId(), user.getUsername());
+        String refreshToken = jwtUtil.generateRefreshToken(user.getId(), user.getUsername());
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("code", 200);
+        response.put("message", "注册成功");
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("token", token);
+        data.put("refreshToken", refreshToken);
+        data.put("tokenType", "Bearer");
+        data.put("expiresIn", 86400);
+        data.put("user", user);
+
+        response.put("data", data);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PostMapping("/refresh")
