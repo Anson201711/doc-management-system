@@ -109,7 +109,7 @@ const DocumentsPage: React.FC = () => {
     }
   ];
 
-  const searchFields = [
+  const searchFields: { name: string; label: string; type: 'text' | 'select'; placeholder?: string; options?: { label: string; value: string }[] }[] = [
     { name: 'keyword', label: '关键词', type: 'text', placeholder: '搜索标题' },
     { name: 'status', label: '状态', type: 'select', options: [{ label: '草稿', value: 'draft' }, { label: '已发布', value: 'published' }, { label: '已归档', value: 'archived' }] }
   ];

@@ -50,4 +50,11 @@
 ## Collaboration
 - 接收 Agent3 (系统架构师) 的任务分解
 - 接收 Agent6 (测试) 的测试进度
+- 协调 Deploy Agent 进行部署
 - 定期向用户汇报整体进度
+
+## Agents
+- **Deploy Agent**: 部署工程师 - 负责 Docker 安装、项目部署、容器化配置
+  - 位置: `agents/deploy-agent/`
+  - 脚本: `scripts/deploy.sh`, `scripts/install-docker.sh`
+  - Docker 配置: `docker/`
