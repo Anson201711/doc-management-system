@@ -152,13 +152,17 @@ CREATE TABLE IF NOT EXISTS comments (
 CREATE TABLE IF NOT EXISTS notifications (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     user_id BIGINT NOT NULL,
+    type VARCHAR(20) NOT NULL COMMENT 'comment/approval/collaboration/system/mention',
     title VARCHAR(255) NOT NULL,
     content TEXT,
-    type VARCHAR(20) COMMENT 'info/warning/error',
-    is_read INT DEFAULT 0,
+    sender VARCHAR(50) DEFAULT 'System',
+    is_read BOOLEAN DEFAULT FALSE,
+    link VARCHAR(500),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_user (user_id),
-    INDEX idx_is_read (is_read)
+    INDEX idx_is_read (is_read),
+    INDEX idx_created (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='通知表';
 
 -- 插入默认管理员用户 (密码: admin123)
