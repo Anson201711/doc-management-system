@@ -20,7 +20,7 @@ import java.util.Map;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/storage")
+@RequestMapping("/api/v1/storage")
 @RequiredArgsConstructor
 public class StorageController {
     

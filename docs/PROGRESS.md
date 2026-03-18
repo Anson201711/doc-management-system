@@ -1,6 +1,6 @@
 # 📋 项目进度记录
 
-**更新时间**: 2026-03-18 15:06
+**更新时间**: 2026-03-18 15:22
 **项目**: 文档管理系统
 
 ---
@@ -31,11 +31,37 @@
 |------|------|------|
 | 架构设计 | ✅ 完成 | 文档管理系统架构设计.md |
 | 微服务划分 | ✅ 完成 | 9个微服务 |
+| user-service | ✅ 完成 | backend/user-service/ |
+| document-service | ✅ 完成 | backend/document-service/ |
+| permission-service | ✅ 完成 | backend/permission-service/ |
+| workflow-service | ✅ 完成 | backend/workflow-service/ |
+| notification-service | ✅ 完成 | backend/notification-service/ |
+| storage-service | ✅ 完成 | backend/storage-service/ |
+| search-service | ✅ 完成 | backend/search-service/ |
+| api-gateway | ✅ 完成 | backend/api-gateway/ |
 
 ### 5. 基础设施配置
 | 任务 | 状态 | 文件 |
 |------|------|------|
 | Docker 中间件配置 | ✅ 完成 | docker/docker-compose.infra.yml |
+
+### 6. 测试用例编写
+| 任务 | 状态 | 文件 |
+|------|------|------|
+| QA-01 测试计划 | ✅ 完成 | docs/测试计划.md |
+| QA-02 用户模块用例 | ✅ 完成 | docs/用户模块测试用例.md |
+| QA-03 文档模块用例 | ✅ 完成 | docs/文档模块测试用例.md |
+| QA-04 权限模块用例 | ✅ 完成 | docs/权限模块测试用例.md |
+
+---
+
+## 🔄 进行中任务
+
+### 后端开发
+| 任务 | 状态 | 说明 |
+|------|------|------|
+| collab-agent | 🔄 进行中 | 评论和批注服务 (collab-service) |
+| auth-agent | 🔄 进行中 | 统一API前缀 + 认证模块 |
 
 ---
 

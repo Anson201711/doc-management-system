@@ -9,7 +9,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/workflows")
+@RequestMapping("/api/v1/workflows")
 @RequiredArgsConstructor
 public class WorkflowController {
     
