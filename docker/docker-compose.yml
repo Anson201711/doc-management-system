@@ -74,20 +74,25 @@ services:
   api-gateway:
     build:
       context: ../backend
-      dockerfile: Dockerfile
+      dockerfile: api-gateway/Dockerfile
     container_name: docman-api-gateway
     restart: always
     ports:
       - "8080:8080"
     environment:
       SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
     networks:
       - docman-network
 
   # 用户服务
   user-service:
     build:
-      context: ../backend
+      context: ../backend/user-service
       dockerfile: Dockerfile
     container_name: docman-user-service
     restart: always
@@ -106,7 +111,7 @@ services:
   # 权限服务
   permission-service:
     build:
-      context: ../backend
+      context: ../backend/permission-service
       dockerfile: Dockerfile
     container_name: docman-permission-service
     restart: always
@@ -125,7 +130,7 @@ services:
   # 文档服务
   document-service:
     build:
-      context: ../backend
+      context: ../backend/document-service
       dockerfile: Dockerfile
     container_name: docman-document-service
     restart: always
@@ -148,7 +153,7 @@ services:
   # 工作流服务
   workflow-service:
     build:
-      context: ../backend
+      context: ../backend/workflow-service
       dockerfile: Dockerfile
     container_name: docman-workflow-service
     restart: always
@@ -167,7 +172,7 @@ services:
   # 通知服务
   notification-service:
     build:
-      context: ../backend
+      context: ../backend/notification-service
       dockerfile: Dockerfile
     container_name: docman-notification-service
     restart: always
@@ -184,7 +189,7 @@ services:
   # 协作服务 (评论/批注/WebSocket)
   collab-service:
     build:
-      context: ../backend
+      context: ../backend/collab-service
       dockerfile: Dockerfile
     container_name: docman-collab-service
     restart: always
@@ -203,7 +208,7 @@ services:
   # 搜索服务 (Elasticsearch)
   search-service:
     build:
-      context: ../backend
+      context: ../backend/search-service
       dockerfile: Dockerfile
     container_name: docman-search-service
     restart: always
@@ -220,7 +225,7 @@ services:
   # 存储服务 (MinIO)
   storage-service:
     build:
-      context: ../backend
+      context: ../backend/storage-service
       dockerfile: Dockerfile
     container_name: docman-storage-service
     restart: always
