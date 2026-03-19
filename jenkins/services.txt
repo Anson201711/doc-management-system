@@ -1,0 +1,28 @@
+# Service Build Scripts
+# This file lists all microservices in the backend
+
+SERVICES=(
+  "api-gateway:API Gateway"
+  "user-service:User Service"
+  "document-service:Document Service"
+  "permission-service:Permission Service"
+  "workflow-service:Workflow Service"
+  "notification-service:Notification Service"
+  "collab-service:Collaboration Service"
+  "search-service:Search Service (Elasticsearch)"
+  "storage-service:Storage Service (MinIO)"
+)
+
+echo "Available Services:"
+echo "=================="
+for service in "${SERVICES[@]}"; do
+  IFS=':' read -r id desc <<< "$service"
+  echo "  - $id: $desc"
+done
+echo ""
+echo "Usage:"
+echo "  ./build-service.sh <service-name>"
+echo ""
+echo "Examples:"
+echo "  ./build-service.sh user-service"
+echo "  ./build-service.sh all"

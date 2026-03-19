@@ -2,11 +2,14 @@
 FROM maven:3.9-eclipse-temurin-17 AS builder
 
 WORKDIR /app
+# Copy parent pom first
+COPY ../pom.xml .
+# Copy this service's pom.xml
 COPY pom.xml .
 COPY src ./src
 RUN mvn clean package -DskipTests
 
-FROM eclipse-temurin:17-jre-alpine
+FROM amazoncorretto:17
 
 WORKDIR /app
 COPY --from=builder /app/target/*.jar app.jar

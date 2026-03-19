@@ -1,0 +1,70 @@
+# Backend Pipeline Script for Jenkins
+# This pipeline builds all microservices in the project
+
+pipeline {
+    agent any
+    
+    options {
+        timestamps()
+        timeout(time: 30, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                echo 'Checking out source code...'
+                script {
+                    // Code would be checked out here if using SCM
+                }
+            }
+        }
+        
+        stage('Validate') {
+            steps {
+                echo 'Validating POM files...'
+                sh 'cd /Users/infodba/.openclaw/workspace/workspace-pm/backend && mvn validate'
+            }
+        }
+        
+        stage('Compile') {
+            steps {
+                echo 'Compiling source code...'
+                sh 'cd /Users/infodba/.openclaw/workspace/workspace-pm/backend && mvn compile -DskipTests'
+            }
+        }
+        
+        stage('Test') {
+            steps {
+                echo 'Running tests...'
+                sh 'cd /Users/infodba/.openclaw/workspace/workspace-pm/backend && mvn test'
+            }
+        }
+        
+        stage('Package') {
+            steps {
+                echo 'Packaging applications...'
+                sh 'cd /Users/infodba/.openclaw/workspace/workspace-pm/backend && mvn package -DskipTests'
+            }
+        }
+        
+        stage('Archive') {
+            steps {
+                echo 'Archiving build artifacts...'
+                archiveArtifacts artifacts: '**/target/*.jar', fingerprint: true, allowEmptyArchive: true
+            }
+        }
+    }
+    
+    post {
+        always {
+            echo 'Build completed'
+        }
+        success {
+            echo 'Build successful!'
+        }
+        failure {
+            echo 'Build failed!'
+        }
+    }
+}

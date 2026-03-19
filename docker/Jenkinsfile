@@ -1,0 +1,139 @@
+# Jenkins CI/CD Pipeline 配置
+# Jenkinsfile - 文档管理系统
+
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_REGISTRY = 'docker.io'
+        IMAGE_PREFIX = 'docman'
+        DOCKER_BUILDKIT = '1'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo 'Checking out source code...'
+                checkout scm
+            }
+        }
+
+        stage('Build Backend') {
+            steps {
+                echo 'Building backend services...'
+                sh '''
+                    cd backend
+                    mvn clean package -DskipTests
+                '''
+            }
+        }
+
+        stage('Unit Tests') {
+            steps {
+                echo 'Running unit tests...'
+                sh '''
+                    cd backend/tests
+                    mvn test -Dspring.profiles.active=test
+                '''
+            }
+            post {
+                always {
+                    junit 'backend/tests/target/surefire-reports/*.xml'
+                    publishHTML(target: [
+                        reportDir: 'backend/tests/target/site/jacoco',
+                        reportFiles: 'index.html',
+                        reportName: 'Code Coverage Report'
+                    ])
+                }
+            }
+        }
+
+        stage('Build Frontend') {
+            steps {
+                echo 'Building frontend...'
+                sh '''
+                    cd frontend
+                    npm install
+                    npm run build
+                '''
+            }
+        }
+
+        stage('Docker Build & Push') {
+            steps {
+                echo 'Building Docker images...'
+                sh '''
+                    # 构建后端服务镜像
+                    for service in api-gateway user-service permission-service document-service workflow-service notification-service collab-service search-service storage-service; do
+                        echo "Building $service..."
+                        docker build -t ${IMAGE_PREFIX}-${service}:${BUILD_NUMBER} \
+                            -t ${IMAGE_PREFIX}-${service}:latest \
+                            backend/${service}/.
+                    done
+                '''
+            }
+        }
+
+        stage('Deploy to Staging') {
+            when {
+                branch 'main'
+            }
+            steps {
+                echo 'Deploying to staging environment...'
+                sh '''
+                    cd docker
+                    docker-compose up -d --build
+                '''
+            }
+        }
+
+        stage('Smoke Test') {
+            when {
+                branch 'main'
+            }
+            steps {
+                echo 'Running smoke tests...'
+                sh '''
+                    sleep 30
+                    chmod +x scripts/smoke-test.sh
+                    ./scripts/smoke-test.sh
+                '''
+            }
+        }
+
+        stage('Deploy to Production') {
+            when {
+                branch 'main'
+            }
+            input {
+                message "Deploy to production?"
+                ok "Deploy"
+            }
+            steps {
+                echo 'Deploying to production...'
+                sh '''
+                    # 标记生产镜像
+                    for service in api-gateway user-service permission-service document-service workflow-service notification-service collab-service search-service storage-service; do
+                        docker tag ${IMAGE_PREFIX}-${service}:${BUILD_NUMBER} ${IMAGE_PREFIX}-${service}:prod
+                    done
+                    
+                    cd docker
+                    docker-compose -f docker-compose.prod.yml up -d
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Cleaning up workspace...'
+            cleanWs()
+        }
+        success {
+            echo 'Build and deployment successful!'
+        }
+        failure {
+            echo 'Build or deployment failed!'
+        }
+    }
+}

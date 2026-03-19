@@ -73,7 +73,7 @@ services:
   # API Gateway
   api-gateway:
     build:
-      context: ../backend/api-gateway
+      context: ../backend
       dockerfile: Dockerfile
     container_name: docman-api-gateway
     restart: always
@@ -87,7 +87,7 @@ services:
   # 用户服务
   user-service:
     build:
-      context: ../backend/user-service
+      context: ../backend
       dockerfile: Dockerfile
     container_name: docman-user-service
     restart: always
@@ -106,7 +106,7 @@ services:
   # 权限服务
   permission-service:
     build:
-      context: ../backend/permission-service
+      context: ../backend
       dockerfile: Dockerfile
     container_name: docman-permission-service
     restart: always
@@ -125,7 +125,7 @@ services:
   # 文档服务
   document-service:
     build:
-      context: ../backend/document-service
+      context: ../backend
       dockerfile: Dockerfile
     container_name: docman-document-service
     restart: always
@@ -148,7 +148,7 @@ services:
   # 工作流服务
   workflow-service:
     build:
-      context: ../backend/workflow-service
+      context: ../backend
       dockerfile: Dockerfile
     container_name: docman-workflow-service
     restart: always
@@ -167,7 +167,7 @@ services:
   # 通知服务
   notification-service:
     build:
-      context: ../backend/notification-service
+      context: ../backend
       dockerfile: Dockerfile
     container_name: docman-notification-service
     restart: always
@@ -184,7 +184,7 @@ services:
   # 协作服务 (评论/批注/WebSocket)
   collab-service:
     build:
-      context: ../backend/collab-service
+      context: ../backend
       dockerfile: Dockerfile
     container_name: docman-collab-service
     restart: always
@@ -203,7 +203,7 @@ services:
   # 搜索服务 (Elasticsearch)
   search-service:
     build:
-      context: ../backend/search-service
+      context: ../backend
       dockerfile: Dockerfile
     container_name: docman-search-service
     restart: always
@@ -220,7 +220,7 @@ services:
   # 存储服务 (MinIO)
   storage-service:
     build:
-      context: ../backend/storage-service
+      context: ../backend
       dockerfile: Dockerfile
     container_name: docman-storage-service
     restart: always
@@ -257,12 +257,27 @@ services:
     networks:
       - docman-network
 
+  # Jenkins CI/CD
+  jenkins:
+    image: jenkins/jenkins:jdk17
+    container_name: docman-jenkins
+    restart: always
+    ports:
+      - "8089:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - docman-network
+
 volumes:
   mysql_data:
   redis_data:
   es_data:
   minio_data:
   document_storage:
+  jenkins_home:
 
 networks:
   docman-network:

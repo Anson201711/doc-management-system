@@ -6,7 +6,7 @@ COPY pom.xml .
 COPY src ./src
 RUN mvn clean package -DskipTests
 
-FROM eclipse-temurin:17-jre-alpine
+FROM amazoncorretto:17
 
 WORKDIR /app
 COPY --from=builder /app/target/*.jar app.jar

@@ -12,20 +12,32 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.elasticsearch.client.elc.ElasticsearchConfiguration;
 import org.springframework.data.elasticsearch.repository.config.EnableElasticsearchRepositories;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @Configuration
 @EnableElasticsearchRepositories(basePackages = "com.example.search.repository")
-public class ElasticsearchConfig extends ElasticsearchConfiguration {
+public class ElasticsearchConfig {
     
-    @Value("${spring.elasticsearch.uris}")
+    @Value("${spring.elasticsearch.uris:localhost:9200}")
     private String elasticsearchUris;
     
-    @Override
+    @Bean
     public ElasticsearchClient elasticsearchClient() {
         String host = elasticsearchUris.replace("http://", "").replace("https://", "");
         String[] hostPort = host.split(":");
         
+        int port = 9200;
+        try {
+            if (hostPort.length > 1) {
+                port = Integer.parseInt(hostPort[1]);
+            }
+        } catch (NumberFormatException e) {
+            // use default port
+        }
+        
         RestClient restClient = RestClient.builder(
-                new HttpHost(hostPort[0], Integer.parseInt(hostPort[1]), "http")
+                new HttpHost(hostPort[0], port, "http")
         ).build();
         
         ElasticsearchTransport transport = new RestClientTransport(

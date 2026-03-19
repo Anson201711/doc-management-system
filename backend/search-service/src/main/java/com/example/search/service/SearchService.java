@@ -16,6 +16,8 @@ import com.example.search.entity.DocumentIndex;
 import com.example.search.repository.DocumentIndexRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -35,6 +37,7 @@ public class SearchService {
     
     private static final String DOCUMENT_INDEX = "documents";
     private static final String DOCUMENT_SERVICE_URL = "http://localhost:8082/api/v1/documents";
+    private static final String CACHE_SEARCH = "search";
     
     /**
      * 创建索引
@@ -70,7 +73,7 @@ public class SearchService {
                 
                 elasticsearchClient.indices().create(CreateIndexRequest.of(c -> c
                         .index(DOCUMENT_INDEX)
-                        .withJson(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(mapping))
+                        .settings(s -> s.numberOfShards("1").numberOfReplicas("0"))
                 ));
                 log.info("Index {} created successfully", DOCUMENT_INDEX);
             }
@@ -131,8 +134,9 @@ public class SearchService {
     }
     
     /**
-     * 搜索文档
+     * 搜索文档 - 缓存搜索结果
      */
+    @Cacheable(value = CACHE_SEARCH, key = "#p0.hashCode()", unless = "#result == null")
     public List<SearchResultDTO> search(SearchRequestDTO request) {
         try {
             BoolQuery.Builder boolQueryBuilder = new BoolQuery.Builder();
@@ -192,7 +196,7 @@ public class SearchService {
                     dto.setVersion(source.getVersion());
                     dto.setFileSize(source.getFileSize());
                     dto.setFileUrl(source.getFileUrl());
-                    dto.setScore(hit.score());
+                    dto.setScore(hit.score() != null ? hit.score().floatValue() : null);
                     
                     // 高亮片段
                     if (hit.highlight() != null) {
@@ -215,6 +219,7 @@ public class SearchService {
     /**
      * 删除文档索引
      */
+    @CacheEvict(value = CACHE_SEARCH, allEntries = true)
     public void deleteDocument(String id) {
         documentIndexRepository.deleteById(id);
         log.info("Document index deleted: {}", id);

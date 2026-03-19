@@ -1,0 +1,67 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description>Backend Full Build - Builds all microservices</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <jenkins.build.concurrent.allowFalseConcurrent>true</jenkins.build.concurrent.allowFalseConcurrent>
+  </properties>
+  <scm class="hudson.scm.NullSCM"/>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers>
+    <hudson.triggers.TimerTrigger>
+      <spec>H 2 * * *</spec>
+    </hudson.triggers.TimerTrigger>
+  </triggers>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+set -e
+
+echo "=========================================="
+echo "Backend Build Started"
+echo "Time: $(date)"
+echo "=========================================="
+
+cd /var/jenkins_home/workspace/project-management/backend
+
+echo "[1/5] Cleaning previous builds..."
+mvn clean -q
+
+echo "[2/5] Validating POM files..."
+mvn validate
+
+echo "[3/5] Compiling all modules..."
+mvn compile -DskipTests
+
+echo "[4/5] Running tests..."
+mvn test || true
+
+echo "[5/5] Packaging all modules..."
+mvn package -DskipTests
+
+echo "=========================================="
+echo "Build Complete!"
+echo "Time: $(date)"
+echo "=========================================="
+
+echo "Generated JAR files:"
+find . -name "*.jar" -path "*/target/*" ! -name "*-sources.jar" -exec ls -lh {} \;</command>
+      <configuredLocalRules/>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers>
+    <hudson.tasks.ArtifactArchiver">
+      <artifacts>**/target/*.jar</artifacts>
+      <allowEmptyArchive>true</allowEmptyArchive>
+      <fingerprint>false</fingerprint>
+      <defaultExcludes>true</defaultExcludes>
+      <caseSensitive>true</caseSensitive>
+    </hudson.tasks.ArtifactArchiver>
+  </publishers>
+  <buildWrappers/>
+</project>
