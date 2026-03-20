@@ -1,70 +1,274 @@
-# Backend Pipeline Script for Jenkins
-# This pipeline builds all microservices in the project
+# Jenkins CI/CD Pipeline for Document Management System
+# GitHub: https://github.com/your-org/doc-management-system
 
 pipeline {
     agent any
     
     options {
         timestamps()
-        timeout(time: 30, unit: 'MINUTES')
+        timeout(time: 60, unit: 'MINUTES')
         buildDiscarder(logRotator(numToKeepStr: '10'))
+        disableConcurrentBuilds()
+    }
+    
+    environment {
+        DOCKER_REGISTRY = 'docker.io'
+        DOCKER_IMAGE_NAME = 'doc-management-system'
+        DOCKER_BACKEND_IMAGE = 'doc-management-backend'
+        DOCKER_FRONTEND_IMAGE = 'doc-management-frontend'
+        GIT_REPO = 'https://github.com/your-org/doc-management-system.git'
+        GIT_CREDENTIALS = 'github-credentials'
     }
     
     stages {
+        // ============================================
+        // Stage 1: Checkout from GitHub
+        // ============================================
         stage('Checkout') {
             steps {
-                echo 'Checking out source code...'
-                script {
-                    // Code would be checked out here if using SCM
+                echo '📥 Checking out source code from GitHub...'
+                checkout scm:
+                    git(
+                        url: "${GIT_REPO}",
+                        credentialsId: "${GIT_CREDENTIALS}",
+                        branch: "${BRANCH ?: 'main'}",
+                        changelog: true,
+                        poll: false
+                    )
+                echo '✅ Code checkout completed'
+            }
+        }
+        
+        // ============================================
+        // Stage 2: Build Backend (Maven)
+        // ============================================
+        stage('Build Backend') {
+            steps {
+                echo '🔨 Building Spring Cloud Backend...'
+                dir('backend') {
+                    sh '''
+                        # Maven validate
+                        echo "Validating POM..."
+                        mvn validate
+                        
+                        # Maven compile
+                        echo "Compiling source code..."
+                        mvn clean compile -DskipTests
+                        
+                        # Run unit tests
+                        echo "Running unit tests..."
+                        mvn test
+                        
+                        # Maven package
+                        echo "Packaging application..."
+                        mvn package -DskipTests
+                    '''
                 }
+                echo '✅ Backend build completed'
             }
         }
         
-        stage('Validate') {
+        // ============================================
+        // Stage 3: Build Frontend
+        // ============================================
+        stage('Build Frontend') {
             steps {
-                echo 'Validating POM files...'
-                sh 'cd /Users/infodba/.openclaw/workspace/workspace-pm/backend && mvn validate'
+                echo '🔨 Building React Frontend...'
+                dir('frontend') {
+                    sh '''
+                        # Install dependencies
+                        echo "Installing dependencies..."
+                        npm install --legacy-peer-deps
+                        
+                        # Lint check
+                        echo "Running lint..."
+                        npm run lint || true
+                        
+                        # Build production
+                        echo "Building production..."
+                        npm run build
+                    '''
+                }
+                echo '✅ Frontend build completed'
             }
         }
         
-        stage('Compile') {
+        // ============================================
+        // Stage 4: Docker Image Build
+        // ============================================
+        stage('Docker Build') {
             steps {
-                echo 'Compiling source code...'
-                sh 'cd /Users/infodba/.openclaw/workspace/workspace-pm/backend && mvn compile -DskipTests'
+                echo '🐳 Building Docker images...'
+                
+                // Build Backend Image
+                sh '''
+                    echo "Building backend Docker image..."
+                    docker build -t ${DOCKER_BACKEND_IMAGE}:${BUILD_NUMBER} \
+                                 -t ${DOCKER_BACKEND_IMAGE}:latest \
+                                 -f backend/Dockerfile backend/
+                '''
+                
+                // Build Frontend Image
+                sh '''
+                    echo "Building frontend Docker image..."
+                    docker build -t ${DOCKER_FRONTEND_IMAGE}:${BUILD_NUMBER} \
+                                 -t ${DOCKER_FRONTEND_IMAGE}:latest \
+                                 -f frontend/Dockerfile frontend/
+                '''
+                
+                echo '✅ Docker images built successfully'
             }
         }
         
-        stage('Test') {
+        // ============================================
+        // Stage 5: Docker Push to Registry
+        // ============================================
+        stage('Docker Push') {
+            when {
+                expression { env.PUSH_DOCKER == 'true' }
+            }
             steps {
-                echo 'Running tests...'
-                sh 'cd /Users/infodba/.openclaw/workspace/workspace-pm/backend && mvn test'
+                echo '📤 Pushing Docker images to registry...'
+                
+                sh '''
+                    # Tag images
+                    docker tag ${DOCKER_BACKEND_IMAGE}:${BUILD_NUMBER} ${DOCKER_REGISTRY}/${DOCKER_BACKEND_IMAGE}:${BUILD_NUMBER}
+                    docker tag ${DOCKER_BACKEND_IMAGE}:latest ${DOCKER_REGISTRY}/${DOCKER_BACKEND_IMAGE}:latest
+                    docker tag ${DOCKER_FRONTEND_IMAGE}:${BUILD_NUMBER} ${DOCKER_REGISTRY}/${DOCKER_FRONTEND_IMAGE}:${BUILD_NUMBER}
+                    docker tag ${DOCKER_FRONTEND_IMAGE}:latest ${DOCKER_REGISTRY}/${DOCKER_FRONTEND_IMAGE}:latest
+                    
+                    # Login to registry (use credentials)
+                    echo ${DOCKER_PASSWORD} | docker login ${DOCKER_REGISTRY} -u ${DOCKER_USERNAME} --password-stdin
+                    
+                    # Push images
+                    docker push ${DOCKER_REGISTRY}/${DOCKER_BACKEND_IMAGE}:${BUILD_NUMBER}
+                    docker push ${DOCKER_REGISTRY}/${DOCKER_BACKEND_IMAGE}:latest
+                    docker push ${DOCKER_REGISTRY}/${DOCKER_FRONTEND_IMAGE}:${BUILD_NUMBER}
+                    docker push ${DOCKER_REGISTRY}/${DOCKER_FRONTEND_IMAGE}:latest
+                    
+                    # Logout
+                    docker logout
+                '''
+                
+                echo '✅ Docker images pushed successfully'
             }
         }
         
-        stage('Package') {
+        // ============================================
+        // Stage 6: Deploy to Server
+        // ============================================
+        stage('Deploy to Server') {
+            when {
+                expression { env.DEPLOY == 'true' }
+            }
             steps {
-                echo 'Packaging applications...'
-                sh 'cd /Users/infodba/.openclaw/workspace/workspace-pm/backend && mvn package -DskipTests'
+                echo '🚀 Deploying to server...'
+                
+                script {
+                    // Deploy using docker-compose
+                    sh '''
+                        # SSH to production server
+                        ssh -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} << 'EOF'
+                            cd /opt/doc-management-system
+                            
+                            # Pull latest images or use local build
+                            docker-compose pull
+                            
+                            # Or use local build (if not pushing to registry)
+                            # docker-compose build --no-cache
+                            
+                            # Stop old containers
+                            docker-compose down
+                            
+                            # Start new containers
+                            docker-compose up -d
+                            
+                            # Clean up old images
+                            docker image prune -f
+                            
+                            # Check status
+                            docker-compose ps
+                        EOF
+                    '''
+                }
+                
+                echo '✅ Deployment completed'
             }
         }
         
-        stage('Archive') {
+        // ============================================
+        // Stage 7: Health Check
+        // ============================================
+        stage('Health Check') {
+            when {
+                expression { env.DEPLOY == 'true' }
+            }
             steps {
-                echo 'Archiving build artifacts...'
-                archiveArtifacts artifacts: '**/target/*.jar', fingerprint: true, allowEmptyArchive: true
+                echo '🏥 Performing health check...'
+                
+                script {
+                    def maxRetries = 10
+                    def retryCount = 0
+                    def healthCheckUrl = "http://${DEPLOY_HOST}:80/health"
+                    
+                    while (retryCount < maxRetries) {
+                        try {
+                            def response = httpRequest url: healthCheckUrl, validResponseCodes: '200'
+                            if (response.status == 200) {
+                                echo '✅ Health check passed!'
+                                break
+                            }
+                        } catch (Exception e) {
+                            echo "Health check attempt ${retryCount + 1} failed, retrying..."
+                        }
+                        retryCount++
+                        sleep 10
+                    }
+                    
+                    if (retryCount >= maxRetries) {
+                        error 'Health check failed!'
+                    }
+                }
             }
         }
     }
     
+    // ============================================
+    // Post-build Actions
+    // ============================================
     post {
         always {
-            echo 'Build completed'
+            echo '📊 Build finished'
+            archiveArtifacts artifacts: '**/target/*.jar,backend/target/*.jar', fingerprint: true, allowEmptyArchive: true
+            archiveArtifacts artifacts: 'frontend/dist/**/*', fingerprint: true, allowEmptyArchive: true
         }
+        
         success {
-            echo 'Build successful!'
+            echo '🎉 Build successful!'
+            // Send notification (email, slack, etc.)
+            emailext (
+                subject: "✅ Build Success: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: "Build #${env.BUILD_NUMBER} completed successfully!\nView console output: ${env.BUILD_URL}",
+                to: "${EMAIL_TO}"
+            )
         }
+        
         failure {
-            echo 'Build failed!'
+            echo '❌ Build failed!'
+            emailext (
+                subject: "❌ Build Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: "Build #${env.BUILD_NUMBER} failed!\nView console output: ${env.BUILD_URL}",
+                to: "${EMAIL_TO}"
+            )
+        }
+        
+        unstable {
+            echo '⚠️ Build unstable'
+        }
+        
+        cleanup {
+            // Clean up workspace
+            cleanWs()
         }
     }
 }

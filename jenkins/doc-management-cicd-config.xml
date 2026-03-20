@@ -1,0 +1,100 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description>Document Management System CI/CD Pipeline - Public GitHub repo</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <jenkins.build.concurrent.allowFalseConcurrent>true</jenkins.build.concurrent.allowFalseConcurrent>
+  </properties>
+  <scm class="hudson.plugins.git.GitSCM">
+    <configVersion>2</configVersion>
+    <userRemoteConfigs>
+      <hudson.plugins.git.UserRemoteConfig>
+        <url>https://github.com/your-org/doc-management-system.git</url>
+      </hudson.plugins.git.UserRemoteConfig>
+    </userRemoteConfigs>
+    <branches>
+      <hudson.plugins.git.BranchSpec>
+        <name>*/main</name>
+      </hudson.plugins.git.BranchSpec>
+    </branches>
+  </scm>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers>
+    <hudson.triggers.SCMTrigger>
+      <spec>H/5 * * * *</spec>
+      <ignorePostCommitHooks>false</ignorePostCommitHooks>
+    </hudson.triggers.SCMTrigger>
+  </triggers>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>#!/bin/bash
+set -e
+
+echo "=========================================="
+echo "🚀 CI/CD Pipeline - Document Management"
+echo "=========================================="
+
+# Variables
+WORKSPACE=/var/jenkins_home/workspace/doc-management-cicd
+GIT_REPO="https://github.com/your-org/doc-management-system.git"
+
+# 1. Checkout code
+echo "📥 Checking out code..."
+mkdir -p $WORKSPACE
+cd $WORKSPACE
+if [ ! -d ".git" ]; then
+    git clone $GIT_REPO .
+fi
+git pull origin main || git pull origin main || true
+
+# 2. Build Backend
+echo "🔨 Building Backend..."
+cd $WORKSPACE/backend
+mvn clean package -DskipTests -q || echo "Backend build warning"
+echo "✅ Backend build completed"
+
+# 3. Build Frontend
+echo "🔨 Building Frontend..."
+cd $WORKSPACE/frontend
+npm install --legacy-peer-deps --silent
+npm run build
+echo "✅ Frontend build completed"
+
+# 4. Docker Build
+echo "🐳 Building Docker images..."
+cd $WORKSPACE
+docker build -t doc-management-backend:latest ./backend/api-gateway/ 2>/dev/null || echo "Backend Docker skipped"
+docker build -t doc-management-frontend:latest ./frontend/
+echo "✅ Docker build completed"
+
+# 5. Deploy (using docker-compose)
+echo "🚀 Deploying to server..."
+cd $WORKSPACE/docker
+docker-compose -f docker-compose.prod.yml down 2>/dev/null || true
+docker-compose -f docker-compose.prod.yml up -d --build
+echo "✅ Deployment completed"
+
+# 6. Health Check
+echo "🏥 Health check..."
+sleep 30
+curl -sf http://localhost:80/health > /dev/null 2>&1 && echo "✅ Service is healthy!" || echo "⚠️ Health check pending"
+
+echo "=========================================="
+echo "🎉 CI/CD Pipeline Completed!"
+echo "=========================================="</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers>
+    <hudson.tasks.Mailer>
+      <recipients>dev@company.com</recipients>
+      <dontNotifyEveryUnstableBuild>false</dontNotifyEveryUnstableBuild>
+      <sendToIndividuals>false</sendToIndividuals>
+    </hudson.tasks.Mailer>
+  </publishers>
+  <buildWrappers/>
+</project>

@@ -1,0 +1,271 @@
+version: '3.8'
+
+services:
+  # API Gateway
+  api-gateway:
+    build:
+      context: ./backend/api-gateway
+      dockerfile: Dockerfile
+    container_name: docmgmt-api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - NACOS_SERVER_ADDR=nacos:8848
+    depends_on:
+      - nacos
+    networks:
+      - docmgmt-network
+    restart: unless-stopped
+
+  # User Service
+  user-service:
+    build:
+      context: ./backend/user-service
+      dockerfile: Dockerfile
+    container_name: docmgmt-user-service
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/doc_management?useSSL=false&serverTimezone=Asia/Shanghai
+      - SPRING_REDIS_HOST=redis
+      - NACOS_SERVER_ADDR=nacos:8848
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - docmgmt-network
+    restart: unless-stopped
+
+  # Document Service
+  document-service:
+    build:
+      context: ./backend/document-service
+      dockerfile: Dockerfile
+    container_name: docmgmt-document-service
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/doc_management?useSSL=false&serverTimezone=Asia/Shanghai
+      - SPRING_REDIS_HOST=redis
+      - NACOS_SERVER_ADDR=nacos:8848
+      - MINIO_ENDPOINT=http://minio:9000
+    volumes:
+      - document-storage:/app/storage
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+    networks:
+      - docmgmt-network
+    restart: unless-stopped
+
+  # Permission Service
+  permission-service:
+    build:
+      context: ./backend/permission-service
+      dockerfile: Dockerfile
+    container_name: docmgmt-permission-service
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/doc_management?useSSL=false&serverTimezone=Asia/Shanghai
+      - NACOS_SERVER_ADDR=nacos:8848
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - docmgmt-network
+    restart: unless-stopped
+
+  # Storage Service
+  storage-service:
+    build:
+      context: ./backend/storage-service
+      dockerfile: Dockerfile
+    container_name: docmgmt-storage-service
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - MINIO_ENDPOINT=http://minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+    volumes:
+      - document-storage:/app/storage
+    depends_on:
+      minio:
+        condition: service_started
+    networks:
+      - docmgmt-network
+    restart: unless-stopped
+
+  # Search Service
+  search-service:
+    build:
+      context: ./backend/search-service
+      dockerfile: Dockerfile
+    container_name: docmgmt-search-service
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - ELASTICSEARCH_HOSTS=elasticsearch:9200
+    depends_on:
+      elasticsearch:
+        condition: service_started
+    networks:
+      - docmgmt-network
+    restart: unless-stopped
+
+  # Workflow Service
+  workflow-service:
+    build:
+      context: ./backend/workflow-service
+      dockerfile: Dockerfile
+    container_name: docmgmt-workflow-service
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/doc_management?useSSL=false&serverTimezone=Asia/Shanghai
+      - NACOS_SERVER_ADDR=nacos:8848
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - docmgmt-network
+    restart: unless-stopped
+
+  # Collab Service (WebSocket)
+  collab-service:
+    build:
+      context: ./backend/collab-service
+      dockerfile: Dockerfile
+    container_name: docmgmt-collab-service
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+    ports:
+      - "8082:8082"
+    networks:
+      - docmgmt-network
+    restart: unless-stopped
+
+  # Notification Service
+  notification-service:
+    build:
+      context: ./backend/notification-service
+      dockerfile: Dockerfile
+    container_name: docmgmt-notification-service
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_REDIS_HOST=redis
+    depends_on:
+      redis:
+        condition: service_started
+    networks:
+      - docmgmt-network
+    restart: unless-stopped
+
+  # Frontend Nginx
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: docmgmt-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - docmgmt-network
+    restart: unless-stopped
+
+  # Infrastructure Services (from infra)
+  mysql:
+    image: mysql:8.0
+    container_name: docmgmt-mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=docmgmt2024
+      - MYSQL_DATABASE=doc_management
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - docmgmt-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: docmgmt-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - docmgmt-network
+    restart: unless-stopped
+
+  elasticsearch:
+    image: elasticsearch:8.11.0
+    container_name: docmgmt-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    networks:
+      - docmgmt-network
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio
+    container_name: docmgmt-minio
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    networks:
+      - docmgmt-network
+    restart: unless-stopped
+
+  nacos:
+    image: nacos/nacos:v2.2.3
+    container_name: docmgmt-nacos
+    environment:
+      - MODE=standalone
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/nacos_config?useSSL=false&serverTimezone=Asia/Shanghai
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=docmgmt2024
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - docmgmt-network
+    restart: unless-stopped
+
+networks:
+  docmgmt-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  redis-data:
+  es-data:
+  minio-data:
+  document-storage:
